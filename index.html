@@ -108,6 +108,7 @@ header {
 .art-body p.numbered { margin: 14px 0 2px; font-weight: 600; color: #0c4a6e; }
 .art-body p.sub { margin-left: 20px; }
 .art-body p.subsub { margin-left: 40px; }
+.art-body p.subsubsub { margin-left: 60px; }
 .preamble-body { padding: 14px 18px; border-top: 1px solid #eaeff3; font-size: 14px; line-height: 1.75; color: #2a3a4a; }
 .preamble-body p { margin: 8px 0; font-style: italic; }
 .themes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -264,10 +265,17 @@ const themesView = document.getElementById("themesView");
 const tabs = document.querySelectorAll(".tab");
 
 // ─── Format article text ────────────────────────────────────
-function renderArticleText(text) {
+function renderArticleText(text, isAnnex) {
   if (!text) return "";
+  // For annexes: strip the redundant "ANNEX I/II" header and subtitle
+  let cleaned = text;
+  if (isAnnex) {
+    cleaned = cleaned.replace(/^ANNEX\s+[IV]+\s*\n\n?/, "");
+    // Remove subtitle line(s) that repeat the annex title
+    cleaned = cleaned.replace(/^[A-Z][^\n]*\n(?:[a-z][^\n]*\n)?/, "");
+  }
   // First pass: merge label-only lines with the line that follows
-  const raw = text.split("\n").filter(l => l.trim());
+  const raw = cleaned.split("\n").filter(l => l.trim());
   const merged = [];
   for (let i = 0; i < raw.length; i++) {
     const t = raw[i].trim();
@@ -287,12 +295,12 @@ function renderArticleText(text) {
   return merged.map(t => {
     const isNumbered = /^\d+\.\s/.test(t);
     const isSub = /^\([a-z]\)\s/.test(t);
-    const isSubSub = /^\(i{1,3}v?\)|\(v\)|\(vi\)|\(vii\)|\(viii\)|\(ix\)/.test(t);
+    const isSubSub = /^\(i{1,3}v?\)\s|\(vi{0,3}\)\s|\(ix\)\s/.test(t);
     const isSubSubSub = /^[a-z]\.\s/.test(t) && !isNumbered;
     const isQuoted = t.startsWith("\u201c") || t.startsWith('"');
     let cls = "";
     if (isNumbered) cls = "numbered";
-    else if (isSubSubSub) cls = "subsub";
+    else if (isSubSubSub) cls = "subsubsub";
     else if (isSubSub) cls = "subsub";
     else if (isSub) cls = "sub";
     const style = isQuoted ? ' style="font-style:italic"' : "";
@@ -422,7 +430,7 @@ function renderToc() {
         </div>`;
       if (isOpen) {
         html += `<div class="slide-in" style="padding:14px 18px;border-top:1px solid #eaeff3">
-          ${renderArticleText(annex.text)}
+          ${renderArticleText(annex.text, true)}
         </div>`;
       }
       html += `</div>`;
