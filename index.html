@@ -326,13 +326,19 @@ function renderArticleText(text, isAnnex) {
       if (!t.startsWith("(")) inSubList = false;
     }
 
-    // Bold the label portion
+    // Bold the label portion, and any quoted defined term following a numbered label
     let html;
     const labelMatch = t.match(/^(\d+\.\s|^\([a-z]{1,4}\)\s|^\(i{1,3}v?\)\s|^\(vi{0,3}\)\s|^\(ix\)\s|^[a-z]\.\s)/);
     if (labelMatch) {
       const label = labelMatch[0];
       const rest = t.slice(label.length);
-      html = `<strong class="label">${escHtml(label.trim())}</strong> ${escHtml(rest)}`;
+      // Check for a quoted defined term after a numbered label: 1. "Term name" means...
+      const defMatch = isNumbered && rest.match(/^(\u201c[^\u201d]+\u201d|"[^"]+")(.*)$/);
+      if (defMatch) {
+        html = `<strong class="label">${escHtml(label.trim())} ${escHtml(defMatch[1])}</strong>${escHtml(defMatch[2])}`;
+      } else {
+        html = `<strong class="label">${escHtml(label.trim())}</strong> ${escHtml(rest)}`;
+      }
     } else {
       html = escHtml(t);
     }
