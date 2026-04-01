@@ -268,11 +268,10 @@ const tabs = document.querySelectorAll(".tab");
 // ─── Format article text ────────────────────────────────────
 function renderArticleText(text, isAnnex) {
   if (!text) return "";
-  // For annexes: strip the redundant "ANNEX I/II" header and subtitle
+  // For annexes: strip only the "ANNEX I/II" line, keep the subtitle
   let cleaned = text;
   if (isAnnex) {
     cleaned = cleaned.replace(/^ANNEX\s+[IV]+\s*\n\n?/, "");
-    cleaned = cleaned.replace(/^[A-Z][^\n]*\n(?:[a-z][^\n]*\n)?/, "");
   }
   // First pass: merge label-only lines with the line that follows
   const raw = cleaned.split("\n").filter(l => l.trim());
@@ -464,7 +463,7 @@ function renderToc() {
           </div>
         </div>`;
       if (isOpen) {
-        html += `<div class="slide-in art-body" style="padding-left:22px">
+        html += `<div class="slide-in art-body">
           ${renderArticleText(annex.text, true)}
         </div>`;
       }
