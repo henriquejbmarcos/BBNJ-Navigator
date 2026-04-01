@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBNJ Agreement Navigator</title>
+<meta name="description" content="Interactive navigator for the Agreement on the Conservation and Sustainable Use of Marine Biological Diversity of Areas beyond National Jurisdiction (BBNJ Agreement).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+::selection { background: #0c4a6e22; }
+body {
+  font-family: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+  color: #1a2a3a; min-height: 100vh; background: #f7f9fb;
+}
+.sf { font-family: 'DM Sans', system-ui, sans-serif; }
+.part-hd { transition: background 0.15s; cursor: pointer; }
+.part-hd:hover { background: #edf3f8 !important; }
+.art-row { transition: background 0.12s; }
+.art-row:hover { background: #f0f6fb !important; }
+.chip { transition: all 0.15s; cursor: pointer; user-select: none; }
+.chip:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.08); }
+.theme-card { transition: all 0.15s; cursor: pointer; user-select: none; }
+.theme-card:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+input:focus { outline: none; border-color: #0a4f76 !important; box-shadow: 0 0 0 3px #0a4f7618; }
+.tab { transition: all 0.12s; cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif; }
+.tab:hover { background: #dde8f0; }
+@keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 8000px; } }
+.slide-in { animation: slideDown 0.25s ease forwards; overflow: hidden; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.fade-in { animation: fadeIn 0.2s ease forwards; }
+header {
+  background: linear-gradient(135deg, #071e2e 0%, #0c3654 40%, #0d4a6f 100%);
+  color: white; padding: 28px 0 24px;
+  border-bottom: 3px solid #1a7ab5;
+}
+.header-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+.header-row { display: flex; align-items: center; gap: 16px; }
+.header-logo { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+.header-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6; margin-bottom: 2px; }
+.header-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.header-subtitle { font-size: 14px; line-height: 1.55; opacity: 0.75; max-width: 700px; margin-top: 10px; }
+.header-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 12px; opacity: 0.5; }
+.main { max-width: 960px; margin: 0 auto; padding: 20px 24px 50px; }
+.search-bar {
+  background: white; border: 1px solid #dde5eb;
+  border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 12px;
+}
+.search-label { font-size: 13px; font-weight: 600; color: #0c2d48; flex-shrink: 0; }
+.search-wrap { position: relative; flex: 1; }
+.search-input {
+  width: 100%; padding: 9px 12px 9px 34px;
+  border: 1px solid #dde5eb; border-radius: 6px;
+  font-size: 13px; color: #1a2a3a; background: #f7f9fb;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.3; }
+.clear-btn {
+  background: none; border: 1px solid #dde5eb; border-radius: 5px;
+  padding: 6px 12px; font-size: 12px; color: #6b8299; cursor: pointer; flex-shrink: 0;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.tabs {
+  display: flex; gap: 3px; margin-bottom: 16px;
+  background: #e4eaf0; border-radius: 8px; padding: 3px;
+}
+.tabs .tab {
+  flex: 1; padding: 10px 14px; border: none; border-radius: 6px;
+  font-size: 13px; background: transparent; color: #6b8299; font-weight: 400;
+}
+.tabs .tab.active {
+  font-weight: 600; background: white; color: #0c2d48;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.filter-status { font-size: 12px; color: #6b8299; margin-bottom: 10px; }
+.card {
+  margin-bottom: 3px; border: 1px solid #dde5eb; border-radius: 8px;
+  overflow: hidden; background: white;
+}
+.part-hd-inner {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px;
+}
+.part-label { font-size: 13px; font-weight: 600; color: #0c2d48; }
+.part-count {
+  font-size: 11px; color: #8da0b0; background: #edf2f6;
+  border-radius: 10px; padding: 2px 8px;
+}
+.caret {
+  transition: transform 0.2s; font-size: 13px; color: #8da0b0; display: inline-block;
+}
+.caret.open { transform: rotate(180deg); }
+.art-hd {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 16px 10px 22px; cursor: pointer;
+}
+.art-num { font-weight: 700; font-size: 12px; color: #0c6b96; min-width: 48px; flex-shrink: 0; padding-top: 1px; }
+.art-title-text { font-size: 13.5px; line-height: 1.4; }
+.art-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.art-body {
+  padding: 4px 22px 16px 80px;
+  border-top: 1px solid #f0f3f6; background: #fafcfd;
+}
+.art-body p { margin: 4px 0; font-size: 14px; line-height: 1.75; color: #2a3a4a; }
+.art-body p.numbered { margin: 14px 0 2px; font-weight: 600; color: #0c4a6e; }
+.art-body p.sub { margin-left: 20px; }
+.art-body p.subsub { margin-left: 40px; }
+.preamble-body { padding: 14px 18px; border-top: 1px solid #eaeff3; font-size: 14px; line-height: 1.75; color: #2a3a4a; }
+.preamble-body p { margin: 8px 0; font-style: italic; }
+.themes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.theme-card {
+  background: white; border: 1px solid #dde5eb;
+  border-radius: 8px; padding: 14px 16px; cursor: pointer;
+}
+.theme-icon { font-size: 18px; }
+.theme-label { font-size: 13px; font-weight: 600; }
+.theme-count { font-size: 12px; color: #8da0b0; }
+.about {
+  margin-top: 28px; background: white; border: 1px solid #dde5eb;
+  border-radius: 10px; padding: 20px 24px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+}
+.about h3 { font-size: 14px; font-weight: 700; color: #0c2d48; margin-bottom: 8px; }
+.about p { font-size: 13px; line-height: 1.65; color: #5a7186; }
+.about p + p { margin-top: 8px; }
+.about a { color: #0c6b96; text-decoration: underline; }
+.about .source { margin-top: 10px; font-size: 11px; color: #94a3b3; }
+footer {
+  background: #071e2e; color: white; padding: 16px 24px;
+  text-align: center; font-size: 12px; opacity: 0.7;
+}
+@media (max-width: 640px) {
+  .about { grid-template-columns: 1fr; }
+  .themes-grid { grid-template-columns: 1fr; }
+  .header-title { font-size: 20px; }
+  .art-body { padding-left: 22px; }
+}
+</style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="header-row">
+        <img src="logo_aimep.png" alt="AIMEP" class="header-logo">
+        <div>
+          <div class="sf header-label">AI &amp; Marine Environmental Policy</div>
+          <h1 class="sf header-title">BBNJ Agreement Navigator</h1>
+        </div>
+      </div>
+      <p class="header-subtitle">Agreement on the Conservation and Sustainable Use of Marine Biological Diversity of Areas beyond National Jurisdiction</p>
+      <div class="sf header-meta">
+        <span>Adopted 19 June 2023</span><span>&middot;</span>
+        <span>Entered into force 17 January 2026</span><span>&middot;</span>
+        <span>76 Articles &middot; 12 Parts &middot; 2 Annexes</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <span class="sf search-label">Search the Agreement</span>
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Search by article number, title, or keyword..." class="sf search-input">
+        <span class="search-icon">&#x1F50D;</span>
+      </div>
+      <button id="clearBtn" class="sf clear-btn" style="display:none">Clear</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-view="toc">Table of Contents</button>
+      <button class="tab" data-view="themes">Navigate by Theme</button>
+    </div>
+
+    <!-- Filter status -->
+    <div id="filterStatus" class="sf filter-status" style="display:none"></div>
+
+    <!-- TOC View -->
+    <div id="tocView" class="fade-in"></div>
+
+    <!-- Themes View -->
+    <div id="themesView" class="fade-in" style="display:none"></div>
+
+    <!-- About -->
+    <div class="about">
+      <div>
+        <h3 class="sf">About this tool</h3>
+        <p>The BBNJ Agreement Navigator is a free, open-access tool for exploring the text of the Agreement on the Conservation and Sustainable Use of Marine Biological Diversity of Areas beyond National Jurisdiction. It contains the treaty text as adopted on 19 June 2023 (A/CONF.232/2023/4).</p>
+        <p>The thematic tagging is editorial and does not form part of the official text. For the authoritative source, see the <a href="https://www.un.org/bbnjagreement/en" target="_blank" rel="noopener">UN BBNJ Agreement</a>.</p>
+      </div>
+      <div>
+        <h3 class="sf">AI &amp; Marine Environmental Policy</h3>
+        <p>This tool is part of the <strong>AI &amp; Marine Environmental Policy</strong> research project by <a href="https://henriquemarcos.com" target="_blank" rel="noopener" style="font-weight:600;text-decoration:none">Dr Henrique Marcos</a>, Maastricht University. The project investigates how international legal rules on marine genetic resources apply when discovery is AI-enabled.</p>
+        <div class="sf source">Source: A/CONF.232/2023/4 &middot; Built with open data from the United Nations</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="sf">BBNJ Agreement Navigator &middot; Dr Henrique Marcos &middot; Maastricht University &middot; 2026</footer>
+
+<script>
+// ─── Theme Definitions ──────────────────────────────────────
+const THEMES = [
+  { id: "mgr", label: "Marine Genetic Resources", color: "#0e7490", icon: "\u{1F9EC}" },
+  { id: "benefit-sharing", label: "Benefit-Sharing", color: "#7c3aed", icon: "\u2696\uFE0F" },
+  { id: "dsi", label: "Digital Sequence Information", color: "#6d28d9", icon: "\u{1F4BB}" },
+  { id: "abmt", label: "ABMTs & MPAs", color: "#047857", icon: "\u{1F30A}" },
+  { id: "eia", label: "Environmental Impact Assessments", color: "#b45309", icon: "\u{1F4CB}" },
+  { id: "capacity-building", label: "Capacity-Building & Technology Transfer", color: "#0369a1", icon: "\u{1F91D}" },
+  { id: "institutional", label: "Institutional Arrangements", color: "#4338ca", icon: "\u{1F3DB}\uFE0F" },
+  { id: "indigenous", label: "Indigenous Peoples & Traditional Knowledge", color: "#065f46", icon: "\u{1F33F}" },
+  { id: "environmental", label: "Environmental Principles", color: "#15803d", icon: "\u{1F30D}" },
+  { id: "disputes", label: "Settlement of Disputes", color: "#9a3412", icon: "\u2696\uFE0F" },
+  { id: "definitions", label: "Definitions", color: "#525252", icon: "\u{1F4D6}" },
+  { id: "general", label: "General & Final Provisions", color: "#64748b", icon: "\u{1F4C4}" },
+];
+
+// ─── Theme mappings (from JSX) ──────────────────────────────
+const ARTICLE_THEMES = {
+  1:["definitions"],2:["general"],3:["general"],4:["general"],5:["general"],
+  6:["general"],7:["environmental"],8:["capacity-building"],
+  9:["mgr","benefit-sharing"],10:["mgr"],11:["mgr","benefit-sharing"],
+  12:["mgr","dsi","institutional"],13:["mgr","indigenous"],
+  14:["mgr","benefit-sharing","dsi"],15:["mgr","benefit-sharing","institutional"],
+  16:["mgr","institutional"],17:["abmt"],18:["abmt"],19:["abmt"],
+  20:["abmt","institutional"],21:["abmt"],22:["abmt","institutional"],
+  23:["abmt","institutional"],24:["abmt"],25:["abmt","institutional"],
+  26:["abmt"],27:["eia"],28:["eia"],29:["eia"],30:["eia"],31:["eia"],
+  32:["eia"],33:["eia"],34:["eia","institutional"],35:["eia"],36:["eia"],
+  37:["eia"],38:["eia","institutional"],39:["eia","environmental"],
+  40:["capacity-building"],41:["capacity-building"],42:["capacity-building"],
+  43:["capacity-building"],44:["capacity-building"],45:["capacity-building"],
+  46:["capacity-building","institutional"],47:["institutional"],
+  48:["institutional"],49:["institutional"],50:["institutional"],
+  51:["institutional","mgr"],52:["institutional","benefit-sharing"],
+  53:["institutional"],54:["institutional"],55:["institutional"],
+  56:["disputes"],57:["disputes"],58:["disputes"],59:["disputes"],
+  60:["disputes"],61:["disputes"],62:["general"],63:["general"],
+  64:["institutional"],65:["general"],66:["general"],67:["institutional","general"],
+  68:["general"],69:["general"],70:["general"],71:["general"],72:["general"],
+  73:["general"],74:["general"],75:["general"],76:["general"],
+};
+
+// ─── State ──────────────────────────────────────────────────
+let TREATY = null;
+let search = "";
+let activeTheme = null;
+let expandedParts = {};
+let expandedArticles = {};
+let showPreamble = false;
+let expandedAnnex = null;
+let view = "toc";
+
+// ─── DOM refs ───────────────────────────────────────────────
+const searchInput = document.getElementById("searchInput");
+const clearBtn = document.getElementById("clearBtn");
+const filterStatus = document.getElementById("filterStatus");
+const tocView = document.getElementById("tocView");
+const themesView = document.getElementById("themesView");
+const tabs = document.querySelectorAll(".tab");
+
+// ─── Format article text ────────────────────────────────────
+function renderArticleText(text) {
+  if (!text) return "";
+  const paragraphs = text.split("\n").filter(l => l.trim());
+  return paragraphs.map(p => {
+    const t = p.trim();
+    const isNumbered = /^\d+\.\s*$/.test(t);
+    const isSub = /^\([a-z]\)/.test(t);
+    const isSubSub = /^\(i{1,3}v?\)|\(v\)|\(vi\)|\(vii\)|\(viii\)|\(ix\)/.test(t);
+    const isQuoted = t.startsWith("\u201c") || t.startsWith('"');
+    let cls = "";
+    if (isNumbered) cls = "numbered";
+    else if (isSubSub) cls = "subsub";
+    else if (isSub) cls = "sub";
+    const style = isQuoted ? ' style="font-style:italic"' : "";
+    return `<p class="${cls}"${style}>${escHtml(t)}</p>`;
+  }).join("");
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ─── Filter logic ───────────────────────────────────────────
+function getFilteredParts() {
+  const q = search.toLowerCase().trim();
+  return TREATY.parts.map(part => {
+    const filtered = part.articles.filter(a => {
+      const themes = ARTICLE_THEMES[a.number] || [];
+      const matchSearch = !q ||
+        a.title.toLowerCase().includes(q) ||
+        ("article " + a.number).includes(q) ||
+        (a.text && a.text.toLowerCase().includes(q));
+      const matchTheme = !activeTheme || themes.includes(activeTheme);
+      return matchSearch && matchTheme;
+    });
+    return { ...part, articles: filtered };
+  }).filter(p => p.articles.length > 0);
+}
+
+// ─── Render TOC ─────────────────────────────────────────────
+function renderToc() {
+  const parts = getFilteredParts();
+  const total = parts.reduce((a, p) => a + p.articles.length, 0);
+  const hasFilters = search || activeTheme;
+
+  // Filter status
+  if (hasFilters) {
+    let html = `Showing ${total} article${total !== 1 ? "s" : ""}`;
+    if (activeTheme) {
+      const th = THEMES.find(t => t.id === activeTheme);
+      html += ` tagged <strong style="color:${th.color}">${th.label}</strong>`;
+    }
+    if (search) html += ` matching &ldquo;${escHtml(search)}&rdquo;`;
+    filterStatus.innerHTML = html;
+    filterStatus.style.display = "";
+  } else {
+    filterStatus.style.display = "none";
+  }
+  clearBtn.style.display = hasFilters ? "" : "none";
+
+  let html = "";
+
+  // Preamble
+  if (!hasFilters) {
+    html += `<div class="card">
+      <div class="part-hd" onclick="togglePreamble()">
+        <div class="part-hd-inner" style="background:${showPreamble ? '#f0f6fb' : 'white'}">
+          <span class="sf part-label">Preamble</span>
+          <span class="caret${showPreamble ? ' open' : ''}">&#x25BE;</span>
+        </div>
+      </div>`;
+    if (showPreamble) {
+      const paras = TREATY.preamble.text.split("\n\n");
+      html += `<div class="slide-in preamble-body">`;
+      paras.forEach(p => { html += `<p>${escHtml(p.replace(/\n/g, " "))}</p>`; });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Parts
+  parts.forEach(part => {
+    const isOpen = expandedParts[part.number];
+    html += `<div class="card">
+      <div class="part-hd" onclick="togglePart('${part.number}')">
+        <div class="part-hd-inner" style="background:${isOpen ? '#f0f6fb' : 'white'}">
+          <span class="sf part-label">Part ${escHtml(part.number)} &mdash; ${escHtml(part.title)}</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span class="sf part-count">${part.articles.length} article${part.articles.length !== 1 ? 's' : ''}</span>
+            <span class="caret${isOpen ? ' open' : ''}">&#x25BE;</span>
+          </span>
+        </div>
+      </div>`;
+    if (isOpen) {
+      html += `<div style="border-top:1px solid #eaeff3">`;
+      part.articles.forEach(art => {
+        const artOpen = expandedArticles[art.number];
+        const themes = ARTICLE_THEMES[art.number] || [];
+        html += `<div class="art-row" style="border-bottom:1px solid #f3f6f8">
+          <div class="art-hd" onclick="toggleArticle(${art.number})">
+            <span class="sf art-num">Art.&nbsp;${art.number}</span>
+            <div style="flex:1">
+              <div class="art-title-text">${escHtml(art.title)}</div>
+              <div class="art-tags">`;
+        themes.forEach(tid => {
+          const th = THEMES.find(t => t.id === tid);
+          if (!th) return;
+          const isActive = activeTheme === tid;
+          html += `<span class="chip sf" onclick="event.stopPropagation();setTheme('${tid}')"
+            style="font-size:10px;padding:1px 6px;border-radius:3px;
+            background:${isActive ? th.color + '15' : '#f1f4f7'};
+            color:${isActive ? th.color : '#6b8299'};
+            border:1px solid ${isActive ? th.color + '35' : '#e4eaf0'}">${th.label}</span>`;
+        });
+        html += `</div></div>
+            <span class="caret${artOpen ? ' open' : ''}" style="font-size:12px;flex-shrink:0">&#x25BE;</span>
+          </div>`;
+        if (artOpen && art.text) {
+          html += `<div class="slide-in art-body">${renderArticleText(art.text)}</div>`;
+        }
+        html += `</div>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+
+  // Annexes
+  if (!hasFilters && TREATY.annexes) {
+    TREATY.annexes.forEach(annex => {
+      const isOpen = expandedAnnex === annex.number;
+      html += `<div class="card">
+        <div class="part-hd" onclick="toggleAnnex('${annex.number}')">
+          <div class="part-hd-inner" style="background:${isOpen ? '#f0f6fb' : 'white'}">
+            <span class="sf part-label">Annex ${escHtml(annex.number)} &mdash; ${escHtml(annex.title)}</span>
+            <span class="caret${isOpen ? ' open' : ''}">&#x25BE;</span>
+          </div>
+        </div>`;
+      if (isOpen) {
+        html += `<div class="slide-in" style="padding:14px 18px;border-top:1px solid #eaeff3">
+          ${renderArticleText(annex.text)}
+        </div>`;
+      }
+      html += `</div>`;
+    });
+  }
+
+  tocView.innerHTML = html;
+}
+
+// ─── Render Themes ──────────────────────────────────────────
+function renderThemes() {
+  let html = '<div class="themes-grid">';
+  THEMES.forEach(theme => {
+    let count = 0;
+    TREATY.parts.forEach(p => {
+      p.articles.forEach(a => {
+        if ((ARTICLE_THEMES[a.number] || []).includes(theme.id)) count++;
+      });
+    });
+    html += `<div class="theme-card" onclick="setTheme('${theme.id}');switchView('toc')"
+      style="border-left:4px solid ${theme.color}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span class="theme-icon">${theme.icon}</span>
+        <span class="sf theme-label" style="color:${theme.color}">${theme.label}</span>
+      </div>
+      <div class="sf theme-count">${count} article${count !== 1 ? 's' : ''}</div>
+    </div>`;
+  });
+  html += '</div>';
+  themesView.innerHTML = html;
+}
+
+// ─── Actions ────────────────────────────────────────────────
+function togglePart(id) { expandedParts[id] = !expandedParts[id]; renderToc(); }
+function toggleArticle(num) { expandedArticles[num] = !expandedArticles[num]; renderToc(); }
+function togglePreamble() { showPreamble = !showPreamble; renderToc(); }
+function toggleAnnex(id) { expandedAnnex = expandedAnnex === id ? null : id; renderToc(); }
+
+function setTheme(id) {
+  activeTheme = activeTheme === id ? null : id;
+  render();
+}
+
+function clearFilters() {
+  search = "";
+  activeTheme = null;
+  searchInput.value = "";
+  render();
+}
+
+function switchView(v) {
+  view = v;
+  tabs.forEach(t => t.classList.toggle("active", t.dataset.view === v));
+  if (v === "themes") { search = ""; activeTheme = null; searchInput.value = ""; }
+  render();
+}
+
+function render() {
+  tocView.style.display = view === "toc" ? "" : "none";
+  themesView.style.display = view === "themes" ? "" : "none";
+  if (view === "toc") renderToc();
+  else renderThemes();
+}
+
+// ─── Events ─────────────────────────────────────────────────
+searchInput.addEventListener("input", function() {
+  search = this.value;
+  if (view !== "toc") switchView("toc");
+  else renderToc();
+});
+clearBtn.addEventListener("click", clearFilters);
+tabs.forEach(t => t.addEventListener("click", () => switchView(t.dataset.view)));
+
+// ─── Load data and boot ─────────────────────────────────────
+fetch("bbnj_agreement.json")
+  .then(r => r.json())
+  .then(data => {
+    TREATY = data;
+    render();
+  })
+  .catch(err => {
+    tocView.innerHTML = '<p style="color:red;padding:20px">Error loading treaty data: ' + err.message + '</p>';
+  });
+</script>
+</body>
+</html>
