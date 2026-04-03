@@ -153,10 +153,34 @@ footer {
   font-family: 'DM Sans', system-ui, sans-serif; transition: all 0.12s;
 }
 .expand-toggle:hover { background: #f0f6fb; color: #0c2d48; }
+/* Cross-reference links */
+.xref { color: #0c6b96; text-decoration: none; border-bottom: 1px solid #0c6b9640; cursor: pointer; }
+.xref:hover { border-bottom-color: #0c6b96; }
+/* Search highlighting */
+mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; }
+/* Definition tooltips */
+.def-tip { border-bottom: 1px dotted #0c6b96; cursor: help; position: relative; }
+.def-tip::after {
+  content: attr(data-def);
+  position: absolute; bottom: calc(100% + 4px); left: 0;
+  background: #1a2a3a; color: #fff;
+  padding: 8px 12px; border-radius: 6px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 12px; line-height: 1.5;
+  min-width: 200px; max-width: 350px; width: max-content;
+  white-space: normal;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.15s; z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.def-tip:hover::after, .def-tip:focus::after, .def-tip.active::after { opacity: 1; }
 /* Print styles */
 @media print {
   header, .search-bar, .tabs, .filter-status, .about, footer,
   .back-to-top, .expand-toggle, .chip, .caret, .part-count { display: none !important; }
+  .def-tip::after { display: none !important; }
+  .def-tip { border-bottom: none; }
+  .xref { color: inherit; border: none; }
   body { background: white; }
   .main { max-width: 100%; padding: 0; }
   .card { border: none; margin-bottom: 0; break-inside: avoid; }
@@ -171,6 +195,7 @@ footer {
   .header-title { font-size: 20px; }
   .art-body { padding-left: 22px; }
   .back-to-top { bottom: 16px; right: 16px; }
+  .def-tip::after { left: auto; right: 0; min-width: 180px; max-width: 280px; }
 }
 </style>
 </head>
@@ -428,7 +453,7 @@ function renderToc() {
 
   // Preamble
   if (!hasFilters) {
-    html += `<div class="card">
+    html += `<div class="card" id="preamble">
       <div class="part-hd" onclick="togglePreamble()">
         <div class="part-hd-inner" style="background:${showPreamble ? '#f0f6fb' : 'white'}">
           <span class="sf part-label">Preamble</span>
@@ -438,7 +463,12 @@ function renderToc() {
     if (showPreamble) {
       const paras = TREATY.preamble.text.split("\n\n");
       html += `<div class="slide-in preamble-body">`;
-      paras.forEach(p => { html += `<p>${escHtml(p.replace(/\n/g, " "))}</p>`; });
+      paras.forEach(p => {
+        let pH = escHtml(p.replace(/\n/g, " "));
+        pH = linkCrossRefs(pH);
+        if (search) pH = highlightSearch(pH, search);
+        html += `<p>${pH}</p>`;
+      });
       html += `</div>`;
     }
     html += `</div>`;
@@ -447,7 +477,7 @@ function renderToc() {
   // Parts
   parts.forEach(part => {
     const isOpen = expandedParts[part.number];
-    html += `<div class="card">
+    html += `<div class="card" id="part-${part.number}">
       <div class="part-hd" onclick="togglePart('${part.number}')">
         <div class="part-hd-inner" style="background:${isOpen ? '#f0f6fb' : 'white'}">
           <span class="sf part-label">Part ${escHtml(part.number)} &mdash; ${escHtml(part.title)}</span>
@@ -468,7 +498,7 @@ function renderToc() {
       part.articles.forEach(art => {
         const artOpen = expandedArticles[art.number];
         const themes = ARTICLE_THEMES[art.number] || [];
-        html += `<div class="art-row" style="border-bottom:1px solid #f3f6f8">
+        html += `<div class="art-row" id="article-${art.number}" style="border-bottom:1px solid #f3f6f8">
           <div class="art-hd" onclick="toggleArticle(${art.number})">
             <span class="sf art-num">Art.&nbsp;${art.number}</span>
             <div style="flex:1">
@@ -488,7 +518,11 @@ function renderToc() {
             <span class="caret${artOpen ? ' open' : ''}" style="font-size:12px;flex-shrink:0">&#x25BE;</span>
           </div>`;
         if (artOpen && art.text) {
-          html += `<div class="slide-in art-body">${renderArticleText(art.text)}</div>`;
+          let bodyHtml = renderArticleText(art.text);
+          bodyHtml = linkCrossRefs(bodyHtml);
+          bodyHtml = addTooltips(bodyHtml, art.number);
+          if (search) bodyHtml = highlightSearch(bodyHtml, search);
+          html += `<div class="slide-in art-body">${bodyHtml}</div>`;
         }
         html += `</div>`;
       });
@@ -501,7 +535,7 @@ function renderToc() {
   if (!hasFilters && TREATY.annexes) {
     TREATY.annexes.forEach(annex => {
       const isOpen = expandedAnnex === annex.number;
-      html += `<div class="card">
+      html += `<div class="card" id="annex-${annex.number}">
         <div class="part-hd" onclick="toggleAnnex('${annex.number}')">
           <div class="part-hd-inner" style="background:${isOpen ? '#f0f6fb' : 'white'}">
             <span class="sf part-label">Annex ${escHtml(annex.number)} &mdash; ${escHtml(annex.title)}</span>
@@ -509,9 +543,11 @@ function renderToc() {
           </div>
         </div>`;
       if (isOpen) {
-        html += `<div class="slide-in art-body">
-          ${renderArticleText(annex.text, true)}
-        </div>`;
+        let annexHtml = renderArticleText(annex.text, true);
+        annexHtml = linkCrossRefs(annexHtml);
+        annexHtml = addTooltips(annexHtml, -1);
+        if (search) annexHtml = highlightSearch(annexHtml, search);
+        html += `<div class="slide-in art-body">${annexHtml}</div>`;
       }
       html += `</div>`;
     });
@@ -593,6 +629,175 @@ searchInput.addEventListener("input", function() {
 clearBtn.addEventListener("click", clearFilters);
 tabs.forEach(t => t.addEventListener("click", () => switchView(t.dataset.view)));
 
+// Cross-reference click handler
+tocView.addEventListener("click", function(e) {
+  const xref = e.target.closest(".xref");
+  if (!xref) return;
+  e.preventDefault();
+  const artNum = xref.dataset.article;
+  const partNum = xref.dataset.part;
+  const annexNum = xref.dataset.annex;
+  if (artNum) navigateToArticle(parseInt(artNum));
+  else if (partNum) navigateToPart(partNum);
+  else if (annexNum) navigateToAnnex(annexNum);
+});
+
+// Definition tooltip touch support
+tocView.addEventListener("click", function(e) {
+  const tip = e.target.closest(".def-tip");
+  if (!tip) return;
+  document.querySelectorAll(".def-tip.active").forEach(el => { if (el !== tip) el.classList.remove("active"); });
+  tip.classList.toggle("active");
+});
+
+// Deep linking
+window.addEventListener("hashchange", handleHash);
+
+// ─── Lookup tables (built once after JSON loads) ────────────
+let ARTICLE_TO_PART = {};
+let DEFINITIONS = [];
+let VALID_PARTS = new Set();
+let VALID_ANNEXES = new Set();
+
+function escAttr(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function buildLookups() {
+  // Article → Part map
+  TREATY.parts.forEach(p => p.articles.forEach(a => { ARTICLE_TO_PART[a.number] = p.number; }));
+  VALID_PARTS = new Set(TREATY.parts.map(p => p.number));
+  VALID_ANNEXES = new Set((TREATY.annexes || []).map(a => a.number));
+
+  // Parse definitions from Article 1
+  const art1 = TREATY.parts[0]?.articles?.find(a => a.number === 1);
+  if (!art1) return;
+  const blocks = art1.text.split(/(?=\d+\.\n)/);
+  blocks.forEach(block => {
+    // Match: 1.\n"Term" means definition...
+    const m = block.match(/^\d+\.\n[\u201c"]([^\u201d"]+)[\u201d"]/);
+    if (!m) return;
+    const term = m[1];
+    // Get definition: everything after the quoted term
+    const defStart = block.indexOf(m[0]) + m[0].length;
+    let def = block.slice(defStart).replace(/\n/g, " ").trim();
+    // Truncate to ~200 chars at word boundary
+    if (def.length > 200) def = def.slice(0, 200).replace(/\s\S*$/, "") + "...";
+    DEFINITIONS.push({ term, definition: def });
+  });
+  // Sort longest first so "Utilization of marine genetic resources" matches before "Marine genetic resources"
+  DEFINITIONS.sort((a, b) => b.term.length - a.term.length);
+}
+
+// ─── Cross-reference linking ────────────────────────────────
+function linkCrossRefs(html) {
+  // "articles N and M"
+  html = html.replace(/\b(articles)\s+(\d+)\s+(and)\s+(\d+)/gi, (m, word, n1, and_, n2) => {
+    const a1 = parseInt(n1), a2 = parseInt(n2);
+    let result = word + " ";
+    result += (a1 >= 1 && a1 <= 76) ? `<a class="xref" data-article="${a1}" href="#article-${a1}">${n1}</a>` : n1;
+    result += " " + and_ + " ";
+    result += (a2 >= 1 && a2 <= 76) ? `<a class="xref" data-article="${a2}" href="#article-${a2}">${n2}</a>` : n2;
+    return result;
+  });
+  // "article N[, paragraph P [(x)]]"
+  html = html.replace(/\b(article)\s+(\d+)((?:,\s*paragraph\s+\d+(?:\s*\([a-z]\))?)?)/gi, (m, word, num, rest) => {
+    const n = parseInt(num);
+    if (n < 1 || n > 76) return m;
+    return `<a class="xref" data-article="${n}" href="#article-${n}">${word} ${num}${rest}</a>`;
+  });
+  // "Part [IVX]+"
+  html = html.replace(/\bPart\s+([IVX]+)\b/g, (m, roman) => {
+    if (!VALID_PARTS.has(roman)) return m;
+    return `<a class="xref" data-part="${roman}" href="#part-${roman}">${m}</a>`;
+  });
+  // "Annex [IVX]+"
+  html = html.replace(/\bAnnex\s+([IVX]+)\b/g, (m, roman) => {
+    if (!VALID_ANNEXES.has(roman)) return m;
+    return `<a class="xref" data-annex="${roman}" href="#annex-${roman}">${m}</a>`;
+  });
+  return html;
+}
+
+// ─── Definition tooltips ────────────────────────────────────
+function addTooltips(html, articleNumber) {
+  if (articleNumber === 1 || !DEFINITIONS.length) return html;
+  DEFINITIONS.forEach(({term, definition}) => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp("(<[^>]+>)|\\b(" + escaped + ")\\b", "gi");
+    let found = false;
+    html = html.replace(re, (m, tag, match) => {
+      if (tag) return tag;
+      if (found) return match;
+      found = true;
+      return `<span class="def-tip" tabindex="0" data-def="${escAttr(definition)}">${match}</span>`;
+    });
+  });
+  return html;
+}
+
+// ─── Search highlighting ────────────────────────────────────
+function highlightSearch(html, query) {
+  if (!query) return html;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp("(" + escaped + ")", "gi");
+  return html.replace(/(<[^>]+>)|([^<]+)/g, (m, tag, text) => {
+    if (tag) return tag;
+    return text.replace(re, "<mark>$1</mark>");
+  });
+}
+
+// ─── Deep linking / navigation ──────────────────────────────
+function scrollToId(id) {
+  requestAnimationFrame(() => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function navigateToArticle(num) {
+  const partNum = ARTICLE_TO_PART[num];
+  if (!partNum) return;
+  if (view !== "toc") switchView("toc");
+  expandedParts[partNum] = true;
+  expandedArticles[num] = true;
+  renderToc();
+  scrollToId("article-" + num);
+  updateHash("article-" + num);
+}
+
+function navigateToPart(roman) {
+  if (view !== "toc") switchView("toc");
+  expandedParts[roman] = true;
+  renderToc();
+  scrollToId("part-" + roman);
+  updateHash("part-" + roman);
+}
+
+function navigateToAnnex(roman) {
+  if (view !== "toc") switchView("toc");
+  expandedAnnex = roman;
+  renderToc();
+  scrollToId("annex-" + roman);
+  updateHash("annex-" + roman);
+}
+
+function handleHash() {
+  const hash = location.hash.slice(1);
+  if (!hash || !TREATY) return;
+  const artMatch = hash.match(/^article-(\d+)$/);
+  const partMatch = hash.match(/^part-([IVX]+)$/i);
+  const annexMatch = hash.match(/^annex-([IVX]+)$/i);
+  if (artMatch) navigateToArticle(parseInt(artMatch[1]));
+  else if (partMatch) navigateToPart(partMatch[1]);
+  else if (annexMatch) navigateToAnnex(annexMatch[1]);
+  else if (hash === "preamble") { showPreamble = true; renderToc(); scrollToId("preamble"); }
+}
+
+function updateHash(fragment) {
+  history.replaceState(null, "", "#" + fragment);
+}
+
 // ─── Back to top ────────────────────────────────────────────
 const backToTop = document.getElementById("backToTop");
 window.addEventListener("scroll", () => {
@@ -614,7 +819,9 @@ fetch("bbnj_agreement.json")
   .then(r => r.json())
   .then(data => {
     TREATY = data;
+    buildLookups();
     render();
+    handleHash();
   })
   .catch(err => {
     tocView.innerHTML = '<p style="color:red;padding:20px">Error loading treaty data: ' + err.message + '</p>';
