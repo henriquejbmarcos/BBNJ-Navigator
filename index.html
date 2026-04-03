@@ -158,28 +158,31 @@ footer {
 .xref:hover { border-bottom-color: #0c6b96; }
 /* Search highlighting */
 mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; }
-/* Definition tooltips */
-.def-tip { border-bottom: 1px dotted #0c6b96; cursor: help; position: relative; }
-.def-tip::after {
-  content: attr(data-def);
-  position: absolute; bottom: calc(100% + 4px); left: 0;
+/* Definition terms */
+.def-tip { border-bottom: 1px dotted #0c6b96; cursor: pointer; }
+.def-tip:hover { background: #0c6b9610; }
+/* Floating tooltip (DOM element, not pseudo) */
+#defTooltip {
+  position: fixed; z-index: 1000; pointer-events: none;
   background: #1a2a3a; color: #fff;
-  padding: 8px 12px; border-radius: 6px;
+  padding: 10px 14px; border-radius: 8px;
   font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 12px; line-height: 1.5;
-  min-width: 200px; max-width: 350px; width: max-content;
+  font-size: 12px; line-height: 1.6;
+  max-width: 380px; width: max-content;
   white-space: normal;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.15s; z-index: 10;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  opacity: 0; transition: opacity 0.15s;
 }
-.def-tip:hover::after, .def-tip:focus::after, .def-tip.active::after { opacity: 1; }
+#defTooltip.visible { opacity: 1; }
+#defTooltip .tip-term { font-weight: 700; color: #7dd3fc; margin-bottom: 4px; }
+#defTooltip .tip-body { color: #e2e8f0; }
+#defTooltip .tip-hint { margin-top: 6px; font-size: 10px; color: #94a3b8; }
 /* Print styles */
 @media print {
   header, .search-bar, .tabs, .filter-status, .about, footer,
   .back-to-top, .expand-toggle, .chip, .caret, .part-count { display: none !important; }
-  .def-tip::after { display: none !important; }
   .def-tip { border-bottom: none; }
+  #defTooltip { display: none !important; }
   .xref { color: inherit; border: none; }
   body { background: white; }
   .main { max-width: 100%; padding: 0; }
@@ -195,7 +198,6 @@ mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; 
   .header-title { font-size: 20px; }
   .art-body { padding-left: 22px; }
   .back-to-top { bottom: 16px; right: 16px; }
-  .def-tip::after { left: auto; right: 0; min-width: 180px; max-width: 280px; }
 }
 </style>
 </head>
@@ -259,6 +261,7 @@ mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; 
     </div>
   </div>
 
+  <div id="defTooltip"><div class="tip-term"></div><div class="tip-body"></div><div class="tip-hint">Click to go to definition</div></div>
   <button class="back-to-top sf" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">&#x25B2;</button>
 
   <footer class="sf">BBNJ Agreement Navigator &middot; Dr Henrique Marcos &middot; Maastricht University &middot; 2026</footer>
@@ -488,12 +491,12 @@ function renderToc() {
         </div>
       </div>`;
     if (isOpen) {
+      const anyArtOpen = part.articles.some(a => expandedArticles[a.number]);
       const allArtOpen = part.articles.every(a => expandedArticles[a.number]);
       html += `<div style="border-top:1px solid #eaeff3">
-        <div style="padding:6px 16px;text-align:right;background:#f8fafb;border-bottom:1px solid #f0f3f6">
-          <button class="expand-toggle" onclick="expandAllInPart('${part.number}', event)">
-            ${allArtOpen ? 'Collapse all' : 'Expand all'}
-          </button>
+        <div style="padding:6px 16px;text-align:right;background:#f8fafb;border-bottom:1px solid #f0f3f6;display:flex;justify-content:flex-end;gap:6px">
+          ${!allArtOpen ? `<button class="expand-toggle" onclick="expandAllInPart('${part.number}', true, event)">Expand all</button>` : ''}
+          ${anyArtOpen ? `<button class="expand-toggle" onclick="expandAllInPart('${part.number}', false, event)">Collapse all</button>` : ''}
         </div>`;
       part.articles.forEach(art => {
         const artOpen = expandedArticles[art.number];
@@ -585,12 +588,11 @@ function toggleArticle(num) { expandedArticles[num] = !expandedArticles[num]; re
 function togglePreamble() { showPreamble = !showPreamble; renderToc(); }
 function toggleAnnex(id) { expandedAnnex = expandedAnnex === id ? null : id; renderToc(); }
 
-function expandAllInPart(partNum, e) {
+function expandAllInPart(partNum, expand, e) {
   e.stopPropagation();
   const part = getFilteredParts().find(p => p.number === partNum);
   if (!part) return;
-  const allOpen = part.articles.every(a => expandedArticles[a.number]);
-  part.articles.forEach(a => { expandedArticles[a.number] = !allOpen; });
+  part.articles.forEach(a => { expandedArticles[a.number] = expand; });
   renderToc();
 }
 
@@ -634,6 +636,7 @@ tocView.addEventListener("click", function(e) {
   const xref = e.target.closest(".xref");
   if (!xref) return;
   e.preventDefault();
+  e.stopPropagation();
   const artNum = xref.dataset.article;
   const partNum = xref.dataset.part;
   const annexNum = xref.dataset.annex;
@@ -642,12 +645,53 @@ tocView.addEventListener("click", function(e) {
   else if (annexNum) navigateToAnnex(annexNum);
 });
 
-// Definition tooltip touch support
+// Definition tooltip: hover to show, click to navigate to Article 1
+const defTooltip = document.getElementById("defTooltip");
+const tipTerm = defTooltip.querySelector(".tip-term");
+const tipBody = defTooltip.querySelector(".tip-body");
+let tipTimeout = null;
+
+function showDefTooltip(el) {
+  const termName = el.dataset.term;
+  const entry = DEFINITIONS.find(d => d.term.toLowerCase() === termName.toLowerCase());
+  if (!entry) return;
+  tipTerm.textContent = "\u201C" + entry.term + "\u201D";
+  tipBody.textContent = entry.definition;
+  defTooltip.classList.add("visible");
+  // Position near the element
+  const rect = el.getBoundingClientRect();
+  let top = rect.top - defTooltip.offsetHeight - 8;
+  let left = rect.left;
+  // If tooltip would go above viewport, show below
+  if (top < 8) top = rect.bottom + 8;
+  // Keep within viewport horizontally
+  if (left + defTooltip.offsetWidth > window.innerWidth - 8) left = window.innerWidth - defTooltip.offsetWidth - 8;
+  if (left < 8) left = 8;
+  defTooltip.style.top = top + "px";
+  defTooltip.style.left = left + "px";
+}
+
+function hideDefTooltip() {
+  defTooltip.classList.remove("visible");
+}
+
+tocView.addEventListener("mouseover", function(e) {
+  const tip = e.target.closest(".def-tip");
+  if (!tip) return;
+  clearTimeout(tipTimeout);
+  showDefTooltip(tip);
+});
+tocView.addEventListener("mouseout", function(e) {
+  const tip = e.target.closest(".def-tip");
+  if (!tip) return;
+  tipTimeout = setTimeout(hideDefTooltip, 200);
+});
 tocView.addEventListener("click", function(e) {
   const tip = e.target.closest(".def-tip");
   if (!tip) return;
-  document.querySelectorAll(".def-tip.active").forEach(el => { if (el !== tip) el.classList.remove("active"); });
-  tip.classList.toggle("active");
+  e.stopPropagation();
+  hideDefTooltip();
+  navigateToArticle(1);
 });
 
 // Deep linking
@@ -675,15 +719,14 @@ function buildLookups() {
   const blocks = art1.text.split(/(?=\d+\.\n)/);
   blocks.forEach(block => {
     // Match: 1.\n"Term" means definition...
-    const m = block.match(/^\d+\.\n[\u201c"]([^\u201d"]+)[\u201d"]/);
+    const m = block.match(/^(\d+)\.\n[\u201c"]([^\u201d"]+)[\u201d"]/);
     if (!m) return;
-    const term = m[1];
-    // Get definition: everything after the quoted term
+    const defNum = m[1];
+    const term = m[2];
+    // Get full definition: everything after the quoted term
     const defStart = block.indexOf(m[0]) + m[0].length;
     let def = block.slice(defStart).replace(/\n/g, " ").trim();
-    // Truncate to ~200 chars at word boundary
-    if (def.length > 200) def = def.slice(0, 200).replace(/\s\S*$/, "") + "...";
-    DEFINITIONS.push({ term, definition: def });
+    DEFINITIONS.push({ term, definition: def, defNum });
   });
   // Sort longest first so "Utilization of marine genetic resources" matches before "Marine genetic resources"
   DEFINITIONS.sort((a, b) => b.term.length - a.term.length);
@@ -722,7 +765,7 @@ function linkCrossRefs(html) {
 // ─── Definition tooltips ────────────────────────────────────
 function addTooltips(html, articleNumber) {
   if (articleNumber === 1 || !DEFINITIONS.length) return html;
-  DEFINITIONS.forEach(({term, definition}) => {
+  DEFINITIONS.forEach(({term}) => {
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const re = new RegExp("(<[^>]+>)|\\b(" + escaped + ")\\b", "gi");
     let found = false;
@@ -730,7 +773,7 @@ function addTooltips(html, articleNumber) {
       if (tag) return tag;
       if (found) return match;
       found = true;
-      return `<span class="def-tip" tabindex="0" data-def="${escAttr(definition)}">${match}</span>`;
+      return `<span class="def-tip" data-term="${escAttr(term)}">${match}</span>`;
     });
   });
   return html;
@@ -749,10 +792,11 @@ function highlightSearch(html, query) {
 
 // ─── Deep linking / navigation ──────────────────────────────
 function scrollToId(id) {
-  requestAnimationFrame(() => {
+  // Double rAF to ensure DOM has laid out after innerHTML change
+  requestAnimationFrame(() => requestAnimationFrame(() => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
+  }));
 }
 
 function navigateToArticle(num) {
