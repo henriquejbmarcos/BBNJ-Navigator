@@ -134,11 +134,43 @@ footer {
   background: #071e2e; color: white; padding: 16px 24px;
   text-align: center; font-size: 12px; opacity: 0.7;
 }
+/* Back to top button */
+.back-to-top {
+  position: fixed; bottom: 28px; right: 28px; z-index: 100;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: #0c3654; color: white; border: none; cursor: pointer;
+  font-size: 18px; line-height: 40px; text-align: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  transform: translateY(10px);
+}
+.back-to-top.visible { opacity: 1; pointer-events: auto; transform: none; }
+.back-to-top:hover { background: #0d4a6f; }
+/* Expand/collapse toggle */
+.expand-toggle {
+  background: none; border: 1px solid #dde5eb; border-radius: 5px;
+  padding: 3px 10px; font-size: 11px; color: #6b8299; cursor: pointer;
+  font-family: 'DM Sans', system-ui, sans-serif; transition: all 0.12s;
+}
+.expand-toggle:hover { background: #f0f6fb; color: #0c2d48; }
+/* Print styles */
+@media print {
+  header, .search-bar, .tabs, .filter-status, .about, footer,
+  .back-to-top, .expand-toggle, .chip, .caret, .part-count { display: none !important; }
+  body { background: white; }
+  .main { max-width: 100%; padding: 0; }
+  .card { border: none; margin-bottom: 0; break-inside: avoid; }
+  .part-hd-inner { padding: 8px 0; }
+  .art-hd { padding: 6px 0 6px 16px; }
+  .art-body { padding: 4px 0 12px 40px; background: none; border: none; }
+  .art-row { border-bottom: 1px solid #ddd !important; }
+}
 @media (max-width: 640px) {
   .about { grid-template-columns: 1fr; }
   .themes-grid { grid-template-columns: 1fr; }
   .header-title { font-size: 20px; }
   .art-body { padding-left: 22px; }
+  .back-to-top { bottom: 16px; right: 16px; }
 }
 </style>
 </head>
@@ -201,6 +233,8 @@ footer {
       </div>
     </div>
   </div>
+
+  <button class="back-to-top sf" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">&#x25B2;</button>
 
   <footer class="sf">BBNJ Agreement Navigator &middot; Dr Henrique Marcos &middot; Maastricht University &middot; 2026</footer>
 
@@ -424,7 +458,13 @@ function renderToc() {
         </div>
       </div>`;
     if (isOpen) {
-      html += `<div style="border-top:1px solid #eaeff3">`;
+      const allArtOpen = part.articles.every(a => expandedArticles[a.number]);
+      html += `<div style="border-top:1px solid #eaeff3">
+        <div style="padding:6px 16px;text-align:right;background:#f8fafb;border-bottom:1px solid #f0f3f6">
+          <button class="expand-toggle" onclick="expandAllInPart('${part.number}', event)">
+            ${allArtOpen ? 'Collapse all' : 'Expand all'}
+          </button>
+        </div>`;
       part.articles.forEach(art => {
         const artOpen = expandedArticles[art.number];
         const themes = ARTICLE_THEMES[art.number] || [];
@@ -509,6 +549,15 @@ function toggleArticle(num) { expandedArticles[num] = !expandedArticles[num]; re
 function togglePreamble() { showPreamble = !showPreamble; renderToc(); }
 function toggleAnnex(id) { expandedAnnex = expandedAnnex === id ? null : id; renderToc(); }
 
+function expandAllInPart(partNum, e) {
+  e.stopPropagation();
+  const part = getFilteredParts().find(p => p.number === partNum);
+  if (!part) return;
+  const allOpen = part.articles.every(a => expandedArticles[a.number]);
+  part.articles.forEach(a => { expandedArticles[a.number] = !allOpen; });
+  renderToc();
+}
+
 function setTheme(id) {
   activeTheme = activeTheme === id ? null : id;
   render();
@@ -543,6 +592,22 @@ searchInput.addEventListener("input", function() {
 });
 clearBtn.addEventListener("click", clearFilters);
 tabs.forEach(t => t.addEventListener("click", () => switchView(t.dataset.view)));
+
+// ─── Back to top ────────────────────────────────────────────
+const backToTop = document.getElementById("backToTop");
+window.addEventListener("scroll", () => {
+  backToTop.classList.toggle("visible", window.scrollY > 400);
+}, { passive: true });
+
+// ─── Keyboard navigation ────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  // Don't capture when typing in search
+  if (e.target === searchInput) return;
+  if (e.key === "/" || e.key === "f" && (e.metaKey || e.ctrlKey)) {
+    // Focus search on / or Cmd+F
+    if (e.key === "/") { e.preventDefault(); searchInput.focus(); }
+  }
+});
 
 // ─── Load data and boot ─────────────────────────────────────
 fetch("bbnj_agreement.json")
